@@ -40,7 +40,7 @@ app.use("/discussions",DiscussionRouter)
   console.log(__dirname,'/build')
   app.use(express.static(path.resolve(__dirname, '/build')));
   app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname+'build'+'index.html'));
+    res.sendFile(path.join(__dirname+'/build'+'/index.html'));
   })
 app.listen(process.env.PORT,()=>{
     console.log("Server is running on port 3000")
