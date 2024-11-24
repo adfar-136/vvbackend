@@ -442,6 +442,7 @@ router.get("/", verifyUser, async (req, res) => {
   router.get('/getProfile', verifyUser, async (req, res) => {
     try {
       const user = await User.findById(req.user.id);
+      console.log(user)
       if (!user) return res.status(404).json({ message: 'User not found' });
       res.status(200).json({ user });
     } catch (error) {
@@ -451,12 +452,12 @@ router.get("/", verifyUser, async (req, res) => {
   });
   
   router.post("/logout", (req, res) => {
-    
-    console.log(res.cookie())
-    res.clearCookie('token', { httpOnly: true, secure: true, sameSite: 'strict' });
-    
-
-    return res.json({ status: true, message: 'Logged out Successfully!' });
+  res.clearCookie('token', { 
+    httpOnly: true, 
+    secure: true, 
+    sameSite: 'None' // Ensure cross-origin compatibility
   });
+  return res.json({ status: true, message: 'Logged out Successfully!' });
+});
 export {router as UserRouter}
 export {verifyUser}
