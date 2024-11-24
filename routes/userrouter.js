@@ -272,8 +272,12 @@ router.post("/signup", async (req, res) => {
       { expiresIn: "3h" }
     );
   
-    res.cookie("token", token, { httpOnly: true, maxAge: 720000, expires:"10h" });
-    return res.json({ status: true, message: "Login successfully" });
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: true, // Required for SameSite=None
+      sameSite: 'None', // Cross-site cookies
+    });
+    return res.json({ status: true, message: "Login successfully",token:token });
   });
   
 var verifyUser =async (req,res,next)=>{
