@@ -1,4 +1,3 @@
-// models/Doc.js
 import mongoose from 'mongoose';
 
 const DocSchema = new mongoose.Schema({
@@ -8,7 +7,7 @@ const DocSchema = new mongoose.Schema({
     image: { type: String, required: true },
   },
   date: { type: Date, default: Date.now },
-  content: { type: String, required: true },
+  content: [{ type: String, required: true }], // Array of strings for content
   codeSnippets: [
     {
       code: { type: String, required: true },
@@ -21,7 +20,9 @@ const DocSchema = new mongoose.Schema({
       altText: { type: String, required: true },
     },
   ],
+  tags: [{ type: String }], // Added tags as an array of strings
 });
-let DocsModel = new mongoose.model('Doc', DocSchema)
 
-export {DocsModel};
+let DocsModel = mongoose.model('Doc', DocSchema);
+
+export { DocsModel };

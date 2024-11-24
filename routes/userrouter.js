@@ -2,13 +2,13 @@ import express from "express";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import nodemailer from "nodemailer";
-import crypto from "crypto";
 import { Otp } from '../models/OtpModel.js';
 import { User} from "../models/userModel.js";
-
+import { Batch } from "../models/batchModel.js";
+import { Session } from "../models/classModel.js";
+import { Attendance } from "../models/attendanceSchema.js";
 const router  = express.Router()
 
-const otpStore = {};
 
 // Setup email transporter
 const transporter = nodemailer.createTransport({
@@ -16,8 +16,81 @@ const transporter = nodemailer.createTransport({
   auth: {
     user: "variableverse@gmail.com",
     pass: "dkkc jqrk hjcn rigj",
-  },
+  }
 })
+router.get('/batches', async (req, res) => {
+  try {
+    const batches = await Batch.find();
+    res.json(batches);
+  } catch (error) {
+    console.error('Error fetching batches:', error);
+    res.status(500).json({ error: 'Failed to fetch batches' });
+  }
+});
+router.get('/batches/:batchId', async (req, res) => {
+  try {
+    const batchId = req.params.batchId;
+    console.log(batchId)
+    const batch = await Batch.findById(batchId);
+    if (!batch) return res.status(404).json({ message: 'Batch not found' });
+    res.json(batch);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error fetching batch details' });
+  }
+});
+router.post("/classes", async (req, res) => {
+  const { title, description, thumbnailUrl, joinLink, date } = req.body;
+
+  try {
+    const newClass = new Session({
+      title,
+      description,
+      thumbnailUrl,
+      joinLink,
+      date,
+    });
+
+    await newClass.save();
+    res.status(201).json({ message: "Class added successfully", class: newClass });
+  } catch (error) {
+    console.error("Error adding class:", error);
+    res.status(500).json({ message: "Failed to add class" });
+  }
+});
+router.get('/classes/this-week', async (req, res) => {
+  try {
+    const today = new Date();
+    
+    // Calculate 3 days before today
+    const threeDaysEarlier = new Date(today);
+    threeDaysEarlier.setDate(today.getDate() - 3);
+
+    // Calculate 7 days after today
+    const sevenDaysLater = new Date(today);
+    sevenDaysLater.setDate(today.getDate() + 7);
+
+    // Log the range to debug
+    console.log('Three Days Earlier:', threeDaysEarlier.toISOString());
+    console.log('Seven Days Later:', sevenDaysLater.toISOString());
+
+    // Query the database for classes within the specified range
+    const classes = await Session.find({
+      date: {
+        $gte: threeDaysEarlier, // Start from 3 days before today
+        $lte: sevenDaysLater,   // Up to 7 days from now
+      },
+    }).sort({ date: 1 }); // Sort by date in ascending order
+
+    res.json(classes);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error fetching classes' });
+  }
+});
+
+
+
 router.post("/signup", async (req, res) => {
     const { username, email, password } = req.body;
   
@@ -59,7 +132,6 @@ router.post("/signup", async (req, res) => {
       return res.status(500).json({ message: "Failed to send OTP." });
     }
   });
-
   router.post("/verify-otp", async (req, res) => {
     const { email, otp } = req.body;
   
@@ -101,6 +173,81 @@ router.post("/signup", async (req, res) => {
     }
   });
   
+  router.post('/forgot-password', async (req, res) => {
+    const { email } = req.body;
+  
+    // Find user by email
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(400).json({ message: 'User not found' });
+    }
+  
+    // Generate OTP
+    const otp = Math.floor(100000 + Math.random() * 900000); // Generates a 6-digit OTP
+    const expiresAt = Date.now() + 10 * 60 * 1000; // OTP expires in 10 minutes
+  
+    // Store OTP in database
+    const otpRecord = new Otp({
+      email,
+      otp,
+      expiresAt,
+    });
+    await otpRecord.save();
+  
+    // Send OTP to user's email
+    const mailOptions = {
+      from: 'variableverse@gmail.com', // Your email address
+      to: email,
+      subject: 'Password Reset OTP',
+      text: `Your OTP for password reset is: ${otp}`,
+    };
+  
+    try {
+      await transporter.sendMail(mailOptions);
+      return res.status(200).json({ message: 'OTP sent to email' });
+    } catch (error) {
+      return res.status(500).json({ message: 'Error sending OTP' });
+    }
+  });
+  router.post('/reset-password', async (req, res) => {
+    const { email, otp, newPassword } = req.body;
+  
+    try {
+      // Retrieve OTP record from database
+      const otpRecord = await Otp.findOne({ email });
+      if (!otpRecord) {
+        return res.status(400).json({ message: 'Invalid OTP or email' });
+      }
+  
+      // Check if OTP has expired
+      if (otpRecord.expiresAt < Date.now()) {
+        await Otp.deleteOne({ email }); // Clean up expired OTP
+        return res.status(400).json({ message: 'OTP expired' });
+      }
+  
+      // Check if OTP is correct
+      if (otpRecord.otp !== parseInt(otp, 10)) {
+        return res.status(400).json({ message: 'Incorrect OTP' });
+      }
+  
+      // Hash the new password
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+  
+      // Update the user's password
+      const user = await User.findOneAndUpdate({ email }, { password: hashedPassword });
+      if (!user) {
+        return res.status(400).json({ message: 'User not found' });
+      }
+  
+      // Delete OTP record after successful password reset
+      await Otp.deleteOne({ email });
+  
+      return res.status(200).json({ message: 'Password successfully reset' });
+    } catch (error) {
+      console.error("Error resetting password:", error);
+      return res.status(500).json({ message: 'Failed to reset password' });
+    }
+  });
     
   router.post("/signin", async (req, res) => {
     const { email, password } = req.body;
@@ -125,11 +272,11 @@ router.post("/signup", async (req, res) => {
       { expiresIn: "3h" }
     );
   
-    res.cookie("token", token, { httpOnly: true, maxAge: 720000 });
+    res.cookie("token", token, { httpOnly: true, maxAge: 720000, expires:"10h" });
     return res.json({ status: true, message: "Login successfully" });
   });
   
-const verifyUser =async (req,res,next)=>{
+var verifyUser =async (req,res,next)=>{
     try {
         const token = req.cookies.token;
    if (!token) {
@@ -143,17 +290,168 @@ const verifyUser =async (req,res,next)=>{
     }
    
 }
+router.post("/mark-attendance", verifyUser,async (req, res) => {
+  const { classId } = req.body;
+  const userId = req.user.id; // Assuming user authentication middleware is in place
+
+  try {
+    // Ensure the class exists
+    const session = await Session.findById(classId);
+    if (!session) {
+      return res.status(404).json({ message: "Class not found" });
+    }
+
+    // Check if attendance already exists for this user and class
+    const existingAttendance = await Attendance.findOne({ classId, userId });
+    if (existingAttendance) {
+      return res.status(400).json({ message: "Attendance already marked for this class." });
+    }
+
+    // Create and save new attendance
+    const newAttendance = new Attendance({
+      classId,
+      userId,
+      status: "Present",
+    });
+
+    await newAttendance.save();
+    res.status(200).json({ message: "Attendance marked successfully!" });
+  } catch (error) {
+    console.error("Error marking attendance:", error);
+    res.status(500).json({ message: "Failed to mark attendance." });
+  }
+});
+router.get("/attendance", verifyUser, async (req, res) => {
+  const userId = req.user.id; // Assuming user authentication middleware is in place
+
+  try {
+    // Fetch attendance records for the user
+    const sessions = await Session.find();
+    const attendanceRecords = await Attendance.find({ userId }).populate("classId");
+
+    // Check if attendance records exist
+    if (!attendanceRecords || attendanceRecords.length === 0) {
+      return res.status(404).json({ message: "No attendance records found." });
+    }
+
+    res.status(200).json({ attendanceRecords ,sessions});
+  } catch (error) {
+    console.error("Error fetching attendance records:", error);
+    res.status(500).json({ message: "Failed to fetch attendance records." });
+  }
+});
+// router.put("/updateProfile", verifyUser, async (req, res) => {
+//   try {
+//     const userId = req.user.id; // Assuming `verifyUser` middleware sets `req.user`
+//     const { gender, dob, education, skills, phone, about, interest } = req.body;
+
+//     // Build the update object
+//     const updateData = {};
+
+//     if (gender) updateData.gender = gender;
+//     if (dob) updateData.dob = dob;
+//     if (education) updateData.education = education;
+//     if (skills) updateData.skills = Array.isArray(skills) ? skills : skills.split(",").map(skill => skill.trim());
+//     if (phone) updateData.phone = phone;
+//     if (about) updateData.about = about;
+//     if (interest) updateData.interest = interest;
+
+//     // Update the user in the database
+//     const updatedUser = await User.findByIdAndUpdate(userId, updateData, { new: true });
+
+//     if (!updatedUser) {
+//       return res.status(404).json({ message: "User not found" });
+//     }
+
+//     res.status(200).json({ message: "Profile updated successfully", user: updatedUser });
+//   } catch (error) {
+//     console.error("Error updating profile:", error);
+//     res.status(500).json({ message: "An error occurred while updating the profile" });
+//   }
+// });
+router.put("/updateProfile", verifyUser, async (req, res) => {
+  try {
+    const userId = req.user.id; // Assuming `verifyUser` middleware sets `req.user`
+    const { gender, dob, education, skills, phone, about, interest, currentBatch } = req.body;
+
+    // Build the update object
+    const updateData = {};
+
+    if (gender) updateData.gender = gender;
+    if (dob) updateData.dob = dob;
+    if (education) updateData.education = education;
+    if (skills) updateData.skills = Array.isArray(skills) ? skills : skills.split(",").map(skill => skill.trim());
+    if (phone) updateData.phone = phone;
+    if (about) updateData.about = about;
+    if (interest) updateData.interest = interest;
+
+    // Validate and update currentBatch
+    if (currentBatch) {
+      const batch = await Batch.findById(currentBatch); // Find the batch by ID
+      if (!batch) {
+        return res.status(400).json({ message: "Invalid batch ID provided" });
+      }
+      updateData.currentBatch = currentBatch; // Update currentBatch if valid
+    }
+
+    // Update the user in the database
+    const updatedUser = await User.findByIdAndUpdate(userId, updateData, { new: true }).populate('currentBatch');
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.status(200).json({ message: "Profile updated successfully", user: updatedUser });
+  } catch (error) {
+    console.error("Error updating profile:", error);
+    res.status(500).json({ message: "An error occurred while updating the profile" });
+  }
+});
+
+
 router.get("/", verifyUser, async (req, res) => {
+  try {
+    // Ensure user details exist after middleware verification
+    if (!req.user) {
+      return res.status(401).json({
+        status: false,
+        message: "Unauthorized: No user details found",
+      });
+    }
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    // If authenticated, send user details
+    return res.json({
+      status: true,
+      message: "User details fetched successfully",
+      user: user,
+    });
+  } catch (error) {
+    console.error("Error fetching user details:", error);
+    return res.status(500).json({
+      status: false,
+      message: "Error fetching user details",
+    });
+  }
+});
+
+  router.get('/getProfile', verifyUser, async (req, res) => {
     try {
-      // If user is authenticated, send their details
-      return res.json({ status: true, user: req.user });
+      const user = await User.findById(req.user.id);
+      if (!user) return res.status(404).json({ message: 'User not found' });
+      res.status(200).json({ user });
     } catch (error) {
-      return res.status(500).json({ status: false, message: "Error fetching user details" });
+      console.error('Error fetching user profile:', error);
+      res.status(500).json({ message: 'Error fetching profile' });
     }
   });
-
+  
   router.post("/logout", (req, res) => {
+    
+    console.log(res.cookie())
     res.clearCookie('token', { httpOnly: true, secure: true, sameSite: 'strict' });
+    
+
     return res.json({ status: true, message: 'Logged out Successfully!' });
   });
 export {router as UserRouter}
