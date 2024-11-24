@@ -20,7 +20,7 @@ dotenv.config();
 
 app.use(express.json());
 app.use(cors({
-  origin:["https://variableverse.onrender.com"],
+  origin:["http://localhost:3001"],
   credentials:true
 }));
 mongoose.connect(process.env.MONGODB_URI)
