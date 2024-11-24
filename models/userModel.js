@@ -62,6 +62,7 @@ const userSchema = new mongoose.Schema(
     currentBatch: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Batch', // Reference to the Batch model
+      default: "674185cae9c2cd9281cc5d4a"
     },
   
     role: {

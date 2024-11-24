@@ -7,6 +7,7 @@ import { User} from "../models/userModel.js";
 import { Batch } from "../models/batchModel.js";
 import { Session } from "../models/classModel.js";
 import { Attendance } from "../models/attendanceSchema.js";
+import {Registration} from "../models/RegistrationModel.js"
 const router  = express.Router()
 
 
@@ -450,7 +451,32 @@ router.get("/", verifyUser, async (req, res) => {
       res.status(500).json({ message: 'Error fetching profile' });
     }
   });
+  router.post("/contact", async (req, res) => {
+    const { firstName, lastName, email, phone, goal } = req.body;
   
+    try {
+      // Validate request
+      if (!firstName || !lastName || !email || !phone) {
+        return res.status(400).json({ error: "All required fields must be filled." });
+      }
+  
+      // Save to database
+      const newRegistration = new Registration({
+        firstName,
+        lastName,
+        email,
+        phone,
+        goal,
+      });
+  
+      await newRegistration.save();
+  
+      res.status(201).json({ message: "Registration successful!" });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: "Failed to process registration." });
+    }
+  });
   router.post("/logout", (req, res) => {
   res.clearCookie('token', { 
     httpOnly: true, 
