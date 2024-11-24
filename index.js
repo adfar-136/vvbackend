@@ -20,7 +20,7 @@ dotenv.config();
 
 app.use(express.json());
 app.use(cors({
-  origin:["http://localhost:3001"],
+  origin:["http://localhost:3001","https://variableverse.onrender.com"],
   credentials:true
 }));
 mongoose.connect(process.env.MONGODB_URI)
@@ -37,10 +37,10 @@ app.use("/content",TopicContentRouter)
 app.use("/docs",DocsRouter)
 app.use("/discussions",DiscussionRouter)
 
-
-  app.use(express.static(path.join(__dirname, '/build')));
+  console.log(__dirname,'/build')
+  app.use(express.static(path.resolve(__dirname, '/build')));
   app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname+'/build/index.html'));
+    res.sendFile(path.join(__dirname+'build'+'index.html'));
   })
 app.listen(process.env.PORT,()=>{
     console.log("Server is running on port 3000")
