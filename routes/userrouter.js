@@ -255,7 +255,7 @@ router.post("/signup", async (req, res) => {
   
     const user = await User.findOne({ email });
     if (!user) {
-      return res.json({ message: "User does not exist" });
+      return res.json({ message: "User does not exist, please sign up" });
     }
   
     if (!user.isVerified) {
@@ -270,7 +270,7 @@ router.post("/signup", async (req, res) => {
     const token = jwt.sign(
       { id: user._id, username: user.username },
       process.env.KEY,
-      { expiresIn: "3h" }
+      { expiresIn: "12h" }
     );
   
     res.cookie('token', token, {
