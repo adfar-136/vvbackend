@@ -8,6 +8,7 @@ import { Batch } from "../models/batchModel.js";
 import { Session } from "../models/classModel.js";
 import { Attendance } from "../models/attendanceSchema.js";
 import {Registration} from "../models/RegistrationModel.js"
+import { ServiceContact } from "../models/ServiceContactModel.js";
 const router  = express.Router()
 
 
@@ -31,7 +32,7 @@ router.get('/batches', async (req, res) => {
 router.get('/batches/:batchId', async (req, res) => {
   try {
     const batchId = req.params.batchId;
-    console.log(batchId)
+   
     const batch = await Batch.findById(batchId);
     if (!batch) return res.status(404).json({ message: 'Batch not found' });
     res.json(batch);
@@ -72,8 +73,7 @@ router.get('/classes/this-week', async (req, res) => {
     sevenDaysLater.setDate(today.getDate() + 7);
 
     // Log the range to debug
-    console.log('Three Days Earlier:', threeDaysEarlier.toISOString());
-    console.log('Seven Days Later:', sevenDaysLater.toISOString());
+    
 
     // Query the database for classes within the specified range
     const classes = await Session.find({
@@ -326,6 +326,25 @@ router.post("/mark-attendance", verifyUser,async (req, res) => {
     res.status(500).json({ message: "Failed to mark attendance." });
   }
 });
+router.post('/servicecontact', async (req, res) => {
+  const { name, email, service, message } = req.body;
+
+  try {
+    // Validate the input
+    if (!name || !email || !service || !message) {
+      return res.status(400).json({ error: 'All fields are required' });
+    }
+
+    // Save to database
+    const newContact = new ServiceContact({ name, email, service, message });
+    await newContact.save();
+
+    res.status(201).json({ message: 'Your request has been submitted successfully' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Server error, please try again later' });
+  }
+});
 router.get("/attendance", verifyUser, async (req, res) => {
   const userId = req.user.id; // Assuming user authentication middleware is in place
 
@@ -443,7 +462,7 @@ router.get("/", verifyUser, async (req, res) => {
   router.get('/getProfile', verifyUser, async (req, res) => {
     try {
       const user = await User.findById(req.user.id);
-      console.log(user)
+      
       if (!user) return res.status(404).json({ message: 'User not found' });
       res.status(200).json({ user });
     } catch (error) {

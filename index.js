@@ -20,9 +20,8 @@ dotenv.config();
 
 app.use(express.json());
 app.use(cors({
-  origin: ["http://localhost:3001", "https://www.variableverse.com"],
-  methods: ["GET", "POST", "PUT", "DELETE","PATCH"], // Specify allowed methods
-  credentials: true, // Allow credentials
+  origin:["http://localhost:3001","https://www.variableverse.com/"],
+  credentials:true
 }));
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => {
@@ -38,7 +37,7 @@ app.use("/content",TopicContentRouter)
 app.use("/docs",DocsRouter)
 app.use("/discussions",DiscussionRouter)
 
-  console.log(__dirname,'/build')
+  
   app.use(express.static(path.join(__dirname, '/build')));
   app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname+'/build/index.html'));

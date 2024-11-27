@@ -7,8 +7,7 @@ const router = express.Router();
 // Create a new discussion
 router.post("/", verifyUser, async (req, res) => {
   const { content } = req.body;
-  console.log(req.user.username)
-  console.log(req.user.id)
+ 
   try {
     const newDiscussion = new Discussion({
       content,
@@ -62,7 +61,7 @@ router.patch("/:id/like", verifyUser, async (req, res) => {
 
     // Check if the user has already liked the discussion
     const userHasLiked = discussion.likedBy.includes(user.id);
-    console.log(userHasLiked)
+   
     if (userHasLiked) {
       // User has liked, so unlike it
       discussion.likes -= 1;
@@ -84,8 +83,7 @@ router.patch("/:id/like", verifyUser, async (req, res) => {
 // Comment on a discussion
 router.post("/:id/comment",verifyUser , async (req, res) => {  
   const { content } = req.body;
-  console.log(req.user.username)
-  console.log(req.user.id)
+ 
   try {
     const discussion = await Discussion.findById(req.params.id);
     if (!discussion) {
@@ -109,14 +107,14 @@ router.delete("/:discussionId/comment/:commentId", verifyUser, async (req, res) 
   
   try {
     const discussion = await Discussion.findById(discussionId);
-    console.log(discussion)
+  
     if (!discussion) {
       return res.status(404).json({ status: false, message: "Discussion not found" });
     }
 
     // Find the comment by its ID
     const comment = discussion.comments.id(commentId);
-    console.log(comment)
+   
     if (!comment) {
       return res.status(404).json({ status: false, message: "Comment not found" });
     }
