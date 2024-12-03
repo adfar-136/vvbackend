@@ -276,7 +276,8 @@ router.post("/signup", async (req, res) => {
     res.cookie('token', token, {
       httpOnly: true,
       secure: true, // Required for SameSite=None
-      sameSite: 'None', // Cross-site cookies
+      sameSite: 'None',
+      partitioned: true,   
     });
     return res.json({ status: true, message: "Login successfully",token:token });
   });
