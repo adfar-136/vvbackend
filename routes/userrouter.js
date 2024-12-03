@@ -277,7 +277,7 @@ router.post("/signup", async (req, res) => {
       httpOnly: true,
       secure: true, // Required for SameSite=None
       sameSite: 'None',
-      partitioned: true,   
+      
     });
     return res.json({ status: true, message: "Login successfully",token:token });
   });
